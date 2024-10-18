@@ -1,0 +1,61 @@
+# include <WiFi.h>  // Para ESP32; se usar ESP8266, inclua <ESP8266WiFi.h>
+# include <MySQL_Connection.h>
+# include <MySQL_Cursor.h>
+
+// Configurações do Wi-Fi e do banco de dados MySQL
+const char* ssid = "your_wifi_ssid";           // Nome da rede Wi-Fi
+const char* password = "your_wifi_password";   // Senha da rede Wi-Fi
+const char* host = "your_mysql_host";          // IP ou domínio do servidor MySQL
+const char* user = "your_mysql_user";          // Usuário do MySQL
+const char* pass = "your_mysql_password";      // Senha do MySQL
+const char* db = "your_mysql_db";              // Nome do banco de dados
+
+WiFiClient client;
+MySQL_Connection conn((Client *)&client);
+
+void setup() {
+  Serial.begin(115200);  // Inicializa o monitor serial
+  WiFi.begin(ssid, password);  // Conecta ao Wi-Fi
+
+// Espera pela conexão ao Wi-Fi
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Conectando ao Wi-Fi...");
+  }
+  Serial.println("Wi-Fi conectado!");
+
+// Conectar ao banco de dados MySQL
+  if (conn.connect(host, 3306, user, pass, db)) {
+    Serial.println("Conectado ao banco de dados!");
+  } else {
+    Serial.println("Falha ao conectar ao banco de dados.");
+  }
+}
+
+void loop() {
+  // Insere uma nova senha no banco de dados
+  String newPassword = "senha_aleatoria";  // Exemplo de nova senha
+  MySQL_Cursor *cur_mem = new MySQL_Cursor(&conn);
+
+  // Monta a query SQL de inserção
+  String queryInsert = "INSERT INTO passwords (password, created_at) VALUES ('" + newPassword + "', NOW())";
+  cur_mem->execute(queryInsert.c_str());
+  Serial.println("Senha inserida com sucesso!");
+
+// Recupera todas as senhas armazenadas
+  cur_mem->execute("SELECT id, password, created_at FROM passwords");
+  row_values *row;
+
+// Exibe as senhas recuperadas
+  while ((row = cur_mem->get_next_row()) != NULL) {
+    Serial.print("ID: ");
+    Serial.print(row->values[0]);
+    Serial.print(" | Senha: ");
+    Serial.print(row->values[1]);
+    Serial.print(" | Registrada em: ");
+    Serial.println(row->values[2]);
+  }
+
+delete cur_mem;  // Libera a memória
+  delay(10000);    // Aguarda 10 segundos antes de repetir o processo
+}
